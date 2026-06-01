@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin — Daily Money Tracker</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2.44.0/tabler-icons.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0F1117;--bg-card:#1A1D27;--bg-hover:#222535;
+  --text:#F0EDE6;--text-2:#A09D97;--text-3:#5C5A55;
+  --border:rgba(255,255,255,.08);--border-md:rgba(255,255,255,.14);
+  --green:#4CAF82;--green-light:#0D2E1F;--green-txt:#7DD4AD;
+  --red:#F07070;--red-light:#2D0E0A;--red-txt:#F5A5A5;
+  --blue:#6B9FFF;--blue-light:#0D1A3A;--blue-txt:#A5C3FF;
+  --amber:#FBB040;--amber-light:#2A1800;--amber-txt:#FDD080;
+  --purple:#A78BFA;--purple-light:#1E0A40;--purple-txt:#C4B5FD;
+  --r:10px;--r-lg:16px;--r-xl:22px;
+  --font:"DM Sans",sans-serif;--mono:"DM Mono",monospace;
+  --shadow:0 1px 3px rgba(0,0,0,.3);--shadow-md:0 4px 16px rgba(0,0,0,.4);
+}
+html,body{min-height:100vh;font-family:var(--font);background:var(--bg);color:var(--text)}
+
+/* Login */
+.login-wrap{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:2rem}
+.login-card{background:var(--bg-card);border:0.5px solid var(--border);border-radius:var(--r-xl);padding:2rem;width:100%;max-width:360px;box-shadow:var(--shadow-md)}
+.login-title{font-size:22px;font-weight:700;margin-bottom:.5rem;text-align:center}
+.login-sub{font-size:13px;color:var(--text-2);text-align:center;margin-bottom:1.5rem}
+.login-input{width:100%;background:var(--bg-hover);border:0.5px solid var(--border-md);border-radius:var(--r);padding:11px 13px;font-size:14px;color:var(--text);font-family:var(--font);outline:none;margin-bottom:10px}
+.login-input:focus{border-color:var(--green)}
+.login-btn{width:100%;padding:12px;border-radius:var(--r);border:none;background:var(--green);color:#fff;font-size:14px;font-weight:600;font-family:var(--font);cursor:pointer}
+.login-err{background:var(--red-light);color:var(--red-txt);font-size:13px;padding:8px 12px;border-radius:var(--r);margin-bottom:10px;display:none}
+.login-err.show{display:block}
+
+/* App */
+.app{display:none}
+.sidebar{position:fixed;left:0;top:0;bottom:0;width:220px;background:var(--bg-card);border-right:0.5px solid var(--border);padding:1.5rem 1rem;display:flex;flex-direction:column;gap:4px}
+.sidebar-logo{display:flex;align-items:center;gap:8px;padding:.5rem .75rem;margin-bottom:1rem}
+.sidebar-logo-icon{width:32px;height:32px;border-radius:8px;background:var(--green);display:flex;align-items:center;justify-content:center;color:#fff;font-size:16px}
+.sidebar-logo-name{font-size:14px;font-weight:700}
+.sidebar-logo-sub{font-size:10px;color:var(--text-3);font-family:var(--mono)}
+.nav-item{display:flex;align-items:center;gap:10px;padding:.65rem .75rem;border-radius:var(--r);cursor:pointer;font-size:13px;font-weight:500;color:var(--text-2);transition:all .15s}
+.nav-item:hover{background:var(--bg-hover);color:var(--text)}
+.nav-item.active{background:var(--green-light);color:var(--green-txt)}
+.nav-item i{font-size:17px}
+.nav-section{font-size:10px;color:var(--text-3);text-transform:uppercase;letter-spacing:.08em;font-weight:600;padding:.5rem .75rem;margin-top:.5rem}
+.sidebar-footer{margin-top:auto;padding:.75rem;border-top:0.5px solid var(--border)}
+.sidebar-user{font-size:12px;color:var(--text-2)}
+
+.main{margin-left:220px;padding:2rem}
+.page-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:2rem}
+.page-title{font-size:24px;font-weight:700;letter-spacing:-.4px}
+.page-sub{font-size:13px;color:var(--text-2);margin-top:3px}
+.refresh-btn{display:flex;align-items:center;gap:6px;padding:8px 14px;border-radius:var(--r);border:0.5px solid var(--border-md);background:var(--bg-card);cursor:pointer;font-size:13px;color:var(--text);font-family:var(--font);font-weight:500;transition:background .15s}
+.refresh-btn:hover{background:var(--bg-hover)}
+
+/* Stats grid */
+.stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:1.5rem}
+@media(max-width:1100px){.stats-grid{grid-template-columns:repeat(2,1fr)}}
+.stat-card{background:var(--bg-card);border:0.5px solid var(--border);border-radius:var(--r-xl);padding:1.25rem;box-shadow:var(--shadow)}
+.stat-label{font-size:11px;color:var(--text-3);text-transform:uppercase;letter-spacing:.08em;font-weight:600;margin-bottom:8px;display:flex;align-items:center;gap:6px}
+.stat-value{font-size:32px;font-weight:700;font-family:var(--mono);letter-spacing:-.5px}
+.stat-sub{font-size:12px;color:var(--text-2);margin-top:5px;display:flex;align-items:center;gap:4px}
+.trend-up{color:var(--green)}.trend-down{color:var(--red)}
+
+/* Charts */
+.charts-grid{display:grid;grid-template-columns:2fr 1fr;gap:14px;margin-bottom:1.5rem}
+@media(max-width:900px){.charts-grid{grid-template-columns:1fr}}
+.chart-card{background:var(--bg-card);border:0.5px solid var(--border);border-radius:var(--r-xl);padding:1.25rem;box-shadow:var(--shadow)}
+.card-title{font-size:13px;font-weight:600;color:var(--text-2);text-transform:uppercase;letter-spacing:.07em;margin-bottom:1rem;display:flex;align-items:center;gap:6px}
+.chart-wrap{position:relative;height:220px}
+
+/* Table */
+.table-card{background:var(--bg-card);border:0.5px solid var(--border);border-radius:var(--r-xl);padding:1.25rem;box-shadow:var(--shadow);margin-bottom:1.5rem}
+.table-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem}
+table{width:100%;border-collapse:collapse}
+th{font-size:11px;color:var(--text-3);text-transform:uppercase;letter-spacing:.07em;font-weight:600;padding:.5rem .75rem;text-align:left;border-bottom:0.5px solid var(--border)}
+td{font-size:13px;padding:.65rem .75rem;border-bottom:0.5px solid var(--border);color:var(--text)}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:var(--bg-hover)}
+.badge{padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600}
+.badge-green{background:var(--green-light);color:var(--green-txt)}
+.badge-blue{background:var(--blue-light);color:var(--blue-txt)}
+.badge-red{background:var(--red-light);color:var(--red-txt)}
+.badge-amber{background:var(--amber-light);color:var(--amber-txt)}
+
+/* Views */
+.view{display:none}
+.view.active{display:block}
+
+/* Loading */
+.loading{display:flex;align-items:center;justify-content:center;height:200px;color:var(--text-2);font-size:14px;gap:8px}
+.spinner{width:20px;height:20px;border:2px solid var(--border);border-top-color:var(--green);border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* Country flags */
+.country-row{display:flex;align-items:center;justify-content:space-between;padding:.5rem 0;border-bottom:0.5px solid var(--border)}
+.country-row:last-child{border-bottom:none}
+.country-name{font-size:13px;font-weight:500}
+.country-bar-wrap{flex:1;height:6px;background:var(--bg-hover);border-radius:3px;margin:0 12px;overflow:hidden}
+.country-bar{height:100%;border-radius:3px;background:var(--green);transition:width .5s ease}
+.country-count{font-size:12px;color:var(--text-2);font-family:var(--mono);min-width:30px;text-align:right}
+
+/* Mobile sidebar toggle */
+.mobile-menu-btn{display:none;position:fixed;top:1rem;left:1rem;z-index:300;background:var(--bg-card);border:0.5px solid var(--border);border-radius:var(--r);padding:8px;cursor:pointer;color:var(--text);font-size:20px}
+@media(max-width:768px){
+  .mobile-menu-btn{display:flex}
+  .sidebar{transform:translateX(-100%);transition:transform .3s;z-index:200}
+  .sidebar.open{transform:translateX(0)}
+  .main{margin-left:0;padding:1rem;padding-top:4rem}
+  .stats-grid{grid-template-columns:repeat(2,1fr)}
+}
+</style>
+</head>
+<body>
+
+<!-- Login -->
+<div class="login-wrap" id="loginWrap">
+  <div class="login-card">
+    <div class="login-title">🛡️ Admin Panel</div>
+    <div class="login-sub">Daily Money Tracker — Admin Access Only</div>
+    <div class="login-err" id="loginErr">Incorrect password. Try again.</div>
+    <input class="login-input" type="password" id="adminPass" placeholder="Enter admin password" onkeydown="if(event.key==='Enter')checkAdmin()">
+    <button class="login-btn" onclick="checkAdmin()">Access Dashboard</button>
+  </div>
+</div>
+
+<!-- App -->
+<div class="app" id="adminApp">
+  <button class="mobile-menu-btn" onclick="toggleSidebar()"><i class="ti ti-menu-2"></i></button>
+
+  <!-- Sidebar -->
+  <div class="sidebar" id="sidebar">
+    <div class="sidebar-logo">
+      <div class="sidebar-logo-icon"><i class="ti ti-chart-bar"></i></div>
+      <div>
+        <div class="sidebar-logo-name">Admin Panel</div>
+        <div class="sidebar-logo-sub">Money Tracker</div>
+      </div>
+    </div>
+
+    <div class="nav-section">Main</div>
+    <div class="nav-item active" onclick="showView('overview')"><i class="ti ti-layout-dashboard"></i> Overview</div>
+    <div class="nav-item" onclick="showView('users')"><i class="ti ti-users"></i> Users</div>
+    <div class="nav-item" onclick="showView('entries')"><i class="ti ti-list"></i> Entries</div>
+    <div class="nav-item" onclick="showView('analytics')"><i class="ti ti-chart-line"></i> Analytics</div>
+
+    <div class="nav-section">System</div>
+    <div class="nav-item" onclick="window.open('https://supabase.com/dashboard/project/kqnekdvhbjqysvlxowud','_blank')"><i class="ti ti-database"></i> Supabase</div>
+    <div class="nav-item" onclick="window.open('https://moneytrackapp.github.io/app','_blank')"><i class="ti ti-external-link"></i> View App</div>
+    <div class="nav-item" onclick="logout()"><i class="ti ti-logout"></i> Logout</div>
+
+    <div class="sidebar-footer">
+      <div class="sidebar-user"><i class="ti ti-shield-check" style="color:var(--green);font-size:12px"></i> Admin Access</div>
+    </div>
+  </div>
+
+  <!-- Main content -->
+  <div class="main">
+
+    <!-- Overview -->
+    <div class="view active" id="view-overview">
+      <div class="page-header">
+        <div>
+          <div class="page-title">Dashboard Overview</div>
+          <div class="page-sub" id="lastUpdated">Loading...</div>
+        </div>
+        <button class="refresh-btn" onclick="loadAll()"><i class="ti ti-refresh"></i> Refresh</button>
+      </div>
+
+      <div class="stats-grid" id="statsGrid">
+        <div class="stat-card"><div class="stat-label"><i class="ti ti-users"></i> Total Users</div><div class="stat-value" id="statUsers">—</div><div class="stat-sub" id="statUsersSub">Loading...</div></div>
+        <div class="stat-card"><div class="stat-label"><i class="ti ti-calendar-day"></i> New Today</div><div class="stat-value" id="statToday">—</div><div class="stat-sub" id="statTodaySub">Signups today</div></div>
+        <div class="stat-card"><div class="stat-label"><i class="ti ti-list"></i> Total Entries</div><div class="stat-value" id="statEntries">—</div><div class="stat-sub" id="statEntriesSub">Loading...</div></div>
+        <div class="stat-card"><div class="stat-label"><i class="ti ti-trophy"></i> Total Goals</div><div class="stat-value" id="statGoals">—</div><div class="stat-sub">Savings goals created</div></div>
+      </div>
+
+      <div class="charts-grid">
+        <div class="chart-card">
+          <div class="card-title"><i class="ti ti-chart-bar"></i> New Users — Last 30 Days</div>
+          <div class="chart-wrap"><canvas id="growthChart"></canvas></div>
+        </div>
+        <div class="chart-card">
+          <div class="card-title"><i class="ti ti-world"></i> Users by Country</div>
+          <div id="countryList"><div class="loading"><div class="spinner"></div> Loading...</div></div>
+        </div>
+      </div>
+
+      <div class="charts-grid">
+        <div class="chart-card">
+          <div class="card-title"><i class="ti ti-language"></i> Languages Used</div>
+          <div class="chart-wrap"><canvas id="langChart"></canvas></div>
+        </div>
+        <div class="chart-card">
+          <div class="card-title"><i class="ti ti-currency-dollar"></i> Currencies Used</div>
+          <div class="chart-wrap"><canvas id="currChart"></canvas></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Users -->
+    <div class="view" id="view-users">
+      <div class="page-header">
+        <div>
+          <div class="page-title">All Users</div>
+          <div class="page-sub" id="userCount">Loading...</div>
+        </div>
+        <button class="refresh-btn" onclick="loadUsers()"><i class="ti ti-refresh"></i> Refresh</button>
+      </div>
+      <div class="table-card">
+        <div id="usersTable"><div class="loading"><div class="spinner"></div> Loading...</div></div>
+      </div>
+    </div>
+
+    <!-- Entries -->
+    <div class="view" id="view-entries">
+      <div class="page-header">
+        <div>
+          <div class="page-title">Recent Entries</div>
+          <div class="page-sub">Latest 100 entries across all users</div>
+        </div>
+        <button class="refresh-btn" onclick="loadEntries()"><i class="ti ti-refresh"></i> Refresh</button>
+      </div>
+      <div class="table-card">
+        <div id="entriesTable"><div class="loading"><div class="spinner"></div> Loading...</div></div>
+      </div>
+    </div>
+
+    <!-- Analytics -->
+    <div class="view" id="view-analytics">
+      <div class="page-header">
+        <div>
+          <div class="page-title">Analytics</div>
+          <div class="page-sub">Detailed insights about your app</div>
+        </div>
+        <button class="refresh-btn" onclick="loadAnalytics()"><i class="ti ti-refresh"></i> Refresh</button>
+      </div>
+      <div class="stats-grid" id="analyticsGrid">
+        <div class="stat-card"><div class="stat-label"><i class="ti ti-arrow-up-right"></i> Total Earned</div><div class="stat-value pos" id="analEarned">—</div><div class="stat-sub">All users combined</div></div>
+        <div class="stat-card"><div class="stat-label"><i class="ti ti-arrow-down-right"></i> Total Spent</div><div class="stat-value neg" id="analSpent">—</div><div class="stat-sub">All users combined</div></div>
+        <div class="stat-card"><div class="stat-label"><i class="ti ti-repeat"></i> Recurring</div><div class="stat-value" id="analRecurring">—</div><div class="stat-sub">Active recurring entries</div></div>
+        <div class="stat-card"><div class="stat-label"><i class="ti ti-star"></i> Avg per User</div><div class="stat-value" id="analAvg">—</div><div class="stat-sub">Entries per user</div></div>
+      </div>
+      <div class="charts-grid">
+        <div class="chart-card">
+          <div class="card-title"><i class="ti ti-chart-pie"></i> Entry Types</div>
+          <div class="chart-wrap"><canvas id="typeChart"></canvas></div>
+        </div>
+        <div class="chart-card">
+          <div class="card-title"><i class="ti ti-tag"></i> Top Categories</div>
+          <div class="chart-wrap"><canvas id="catChart"></canvas></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+const { createClient } = supabase;
+const sb = createClient('https://kqnekdvhbjqysvlxowud.supabase.co', 'sb_publishable_XVl1PJ72vXqhkBzFMEbcxQ_e5j5Igbw');
+
+// ── Admin password (change this to something secret!) ──────
+const ADMIN_PASSWORD = 'admin@DMT2024!';
+let growthChart = null, langChart = null, currChart = null, typeChart = null, catChart = null;
+
+function checkAdmin() {
+  const pass = document.getElementById('adminPass').value;
+  if (pass === ADMIN_PASSWORD) {
+    localStorage.setItem('adminAuth', 'true');
+    document.getElementById('loginWrap').style.display = 'none';
+    document.getElementById('adminApp').style.display = 'block';
+    loadAll();
+  } else {
+    document.getElementById('loginErr').classList.add('show');
+    document.getElementById('adminPass').value = '';
+  }
+}
+
+function logout() {
+  localStorage.removeItem('adminAuth');
+  location.reload();
+}
+
+function toggleSidebar() {
+  document.getElementById('sidebar').classList.toggle('open');
+}
+
+function showView(name) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('view-' + name).classList.add('active');
+  event.currentTarget.classList.add('active');
+  if (name === 'users') loadUsers();
+  if (name === 'entries') loadEntries();
+  if (name === 'analytics') loadAnalytics();
+}
+
+// ── Check if already logged in ────────────────────────────
+if (localStorage.getItem('adminAuth') === 'true') {
+  document.getElementById('loginWrap').style.display = 'none';
+  document.getElementById('adminApp').style.display = 'block';
+  loadAll();
+}
+
+// ── Load all overview data ─────────────────────────────────
+async function loadAll() {
+  document.getElementById('lastUpdated').textContent = 'Updated: ' + new Date().toLocaleTimeString();
+
+  const [profilesRes, entriesRes, goalsRes, recurringRes] = await Promise.all([
+    sb.from('profiles').select('*'),
+    sb.from('entries').select('*'),
+    sb.from('goals').select('*'),
+    sb.from('recurring_entries').select('*')
+  ]);
+
+  const profiles = profilesRes.data || [];
+  const entries = entriesRes.data || [];
+  const goals = goalsRes.data || [];
+  const recurring = recurringRes.data || [];
+
+  // Total users
+  document.getElementById('statUsers').textContent = profiles.length;
+  document.getElementById('statUsersSub').textContent = profiles.length + ' registered accounts';
+
+  // New today
+  const today = new Date().toISOString().slice(0, 10);
+  const todayUsers = profiles.filter(p => p.created_at && p.created_at.slice(0,10) === today).length;
+  document.getElementById('statToday').textContent = todayUsers;
+
+  // Total entries
+  document.getElementById('statEntries').textContent = entries.length.toLocaleString();
+  document.getElementById('statEntriesSub').textContent = 'Across all users';
+
+  // Goals
+  document.getElementById('statGoals').textContent = goals.length;
+
+  // Growth chart (last 30 days)
+  renderGrowthChart(profiles);
+
+  // Country breakdown
+  renderCountries(profiles);
+
+  // Language chart
+  renderLangChart(profiles);
+
+  // Currency chart
+  renderCurrChart(profiles);
+}
+
+function renderGrowthChart(profiles) {
+  const counts = {};
+  for (let i = 29; i >= 0; i--) {
+    const d = new Date(); d.setDate(d.getDate() - i);
+    const k = d.toISOString().slice(0,10);
+    counts[k] = 0;
+  }
+  profiles.forEach(p => {
+    const d = (p.created_at || '').slice(0,10);
+    if (counts[d] !== undefined) counts[d]++;
+  });
+  const labels = Object.keys(counts).map(d => {
+    const dt = new Date(d + 'T00:00:00');
+    return dt.toLocaleDateString('en-US', {month:'short', day:'numeric'});
+  });
+  const data = Object.values(counts);
+  const ctx = document.getElementById('growthChart').getContext('2d');
+  if (growthChart) growthChart.destroy();
+  growthChart = new Chart(ctx, {
+    type: 'line',
+    data: { labels, datasets: [{
+      label: 'New Users', data,
+      borderColor: '#4CAF82', backgroundColor: 'rgba(76,175,130,.15)',
+      tension: .4, fill: true, pointRadius: 3, pointBackgroundColor: '#4CAF82'
+    }]},
+    options: { responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { grid: { display: false }, ticks: { color: '#888', font: { size: 10 }, maxTicksLimit: 10 } },
+        y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,.05)' }, ticks: { color: '#888', font: { size: 10 } } }
+      }
+    }
+  });
+}
+
+function renderCountries(profiles) {
+  const counts = {};
+  const flags = {
+    af_dari: '🇦🇫 Afghanistan (Dari)', af_pashto: '🇦🇫 Afghanistan (Pashto)',
+    us: '🇺🇸 USA', gb: '🇬🇧 UK', eu: '🇪🇺 Europe',
+    sa: '🇸🇦 Saudi Arabia', ae: '🇦🇪 UAE', tr: '🇹🇷 Turkey',
+    in: '🇮🇳 India', ph: '🇵🇭 Philippines', de: '🇩🇪 Germany',
+    fr: '🇫🇷 France', es: '🇪🇸 Spain', other: '🌍 Other'
+  };
+  profiles.forEach(p => {
+    const c = p.country || 'other';
+    counts[c] = (counts[c] || 0) + 1;
+  });
+  const sorted = Object.entries(counts).sort((a,b) => b[1]-a[1]);
+  const max = sorted[0]?.[1] || 1;
+  const el = document.getElementById('countryList');
+  if (!sorted.length) { el.innerHTML = '<div class="loading">No data yet</div>'; return; }
+  el.innerHTML = sorted.map(([code, count]) => `
+    <div class="country-row">
+      <div class="country-name">${flags[code] || '🌍 ' + code}</div>
+      <div class="country-bar-wrap"><div class="country-bar" style="width:${(count/max*100).toFixed(0)}%"></div></div>
+      <div class="country-count">${count}</div>
+    </div>`).join('');
+}
+
+function renderLangChart(profiles) {
+  const langNames = { en:'English', dari:'Dari', pashto:'Pashto', ar:'Arabic', tr:'Turkish', es:'Spanish', fr:'French', de:'German' };
+  const counts = {};
+  profiles.forEach(p => { const l = p.language || 'en'; counts[l] = (counts[l]||0)+1; });
+  const ctx = document.getElementById('langChart').getContext('2d');
+  if (langChart) langChart.destroy();
+  const entries = Object.entries(counts).sort((a,b)=>b[1]-a[1]);
+  const colors = ['#4CAF82','#6B9FFF','#A78BFA','#FBB040','#F07070','#34D399','#60A5FA','#F472B6'];
+  langChart = new Chart(ctx, {
+    type: 'doughnut',
+    data: { labels: entries.map(([k])=>langNames[k]||k), datasets: [{ data: entries.map(([,v])=>v), backgroundColor: colors, borderWidth: 0 }] },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { color: '#A09D97', font: { size: 11 }, padding: 10 } } } }
+  });
+}
+
+function renderCurrChart(profiles) {
+  const counts = {};
+  profiles.forEach(p => { const c = p.currency || '$'; counts[c] = (counts[c]||0)+1; });
+  const ctx = document.getElementById('currChart').getContext('2d');
+  if (currChart) currChart.destroy();
+  const entries = Object.entries(counts).sort((a,b)=>b[1]-a[1]);
+  const colors = ['#4CAF82','#6B9FFF','#A78BFA','#FBB040','#F07070','#34D399','#60A5FA','#F472B6','#FBBF24'];
+  currChart = new Chart(ctx, {
+    type: 'doughnut',
+    data: { labels: entries.map(([k])=>k), datasets: [{ data: entries.map(([,v])=>v), backgroundColor: colors, borderWidth: 0 }] },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { color: '#A09D97', font: { size: 11 }, padding: 10 } } } }
+  });
+}
+
+// ── Load users table ───────────────────────────────────────
+async function loadUsers() {
+  document.getElementById('usersTable').innerHTML = '<div class="loading"><div class="spinner"></div> Loading...</div>';
+  const { data: profiles } = await sb.from('profiles').select('*').order('created_at', { ascending: false });
+  const { data: entries } = await sb.from('entries').select('user_id');
+  const entryCounts = {};
+  (entries||[]).forEach(e => { entryCounts[e.user_id] = (entryCounts[e.user_id]||0)+1; });
+  const p = profiles || [];
+  document.getElementById('userCount').textContent = p.length + ' total users';
+  if (!p.length) { document.getElementById('usersTable').innerHTML = '<div class="loading">No users yet</div>'; return; }
+  document.getElementById('usersTable').innerHTML = `
+    <table>
+      <thead><tr>
+        <th>#</th><th>Email</th><th>Country</th><th>Language</th><th>Currency</th><th>Entries</th><th>Joined</th>
+      </tr></thead>
+      <tbody>${p.map((u,i) => `<tr>
+        <td style="color:var(--text-3);font-family:var(--mono)">${i+1}</td>
+        <td style="font-weight:500">${u.email || '—'}</td>
+        <td>${u.country || '—'}</td>
+        <td><span class="badge badge-blue">${u.language || 'en'}</span></td>
+        <td style="font-family:var(--mono)">${u.currency || '$'}</td>
+        <td style="font-family:var(--mono)">${entryCounts[u.id]||0}</td>
+        <td style="color:var(--text-2)">${u.created_at ? new Date(u.created_at).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) : '—'}</td>
+      </tr>`).join('')}</tbody>
+    </table>`;
+}
+
+// ── Load entries table ─────────────────────────────────────
+async function loadEntries() {
+  document.getElementById('entriesTable').innerHTML = '<div class="loading"><div class="spinner"></div> Loading...</div>';
+  const { data: entries } = await sb.from('entries').select('*').order('created_at', { ascending: false }).limit(100);
+  const e = entries || [];
+  if (!e.length) { document.getElementById('entriesTable').innerHTML = '<div class="loading">No entries yet</div>'; return; }
+  document.getElementById('entriesTable').innerHTML = `
+    <table>
+      <thead><tr>
+        <th>Date</th><th>Type</th><th>Category</th><th>Description</th><th>Amount</th><th>Logged</th>
+      </tr></thead>
+      <tbody>${e.map(en => `<tr>
+        <td style="font-family:var(--mono)">${en.date}</td>
+        <td><span class="badge ${en.type==='earn'?'badge-green':'badge-red'}">${en.type==='earn'?'Earned':'Spent'}</span></td>
+        <td>${en.category||'—'}</td>
+        <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${en.description||'—'}</td>
+        <td style="font-weight:600;font-family:var(--mono);color:${en.type==='earn'?'var(--green)':'var(--red)'}">
+          ${en.type==='earn'?'+':'-'}$${parseFloat(en.amount||0).toFixed(2)}
+        </td>
+        <td style="color:var(--text-2)">${en.created_at ? new Date(en.created_at).toLocaleDateString('en-US',{month:'short',day:'numeric'}) : '—'}</td>
+      </tr>`).join('')}</tbody>
+    </table>`;
+}
+
+// ── Load analytics ─────────────────────────────────────────
+async function loadAnalytics() {
+  const [entriesRes, recurringRes, profilesRes] = await Promise.all([
+    sb.from('entries').select('*'),
+    sb.from('recurring_entries').select('*'),
+    sb.from('profiles').select('id')
+  ]);
+  const entries = entriesRes.data || [];
+  const recurring = recurringRes.data || [];
+  const profiles = profilesRes.data || [];
+
+  const totalEarned = entries.filter(e=>e.type==='earn').reduce((s,e)=>s+parseFloat(e.amount||0),0);
+  const totalSpent = entries.filter(e=>e.type==='expense').reduce((s,e)=>s+parseFloat(e.amount||0),0);
+  const avgPerUser = profiles.length ? (entries.length / profiles.length).toFixed(1) : 0;
+
+  document.getElementById('analEarned').textContent = '$' + totalEarned.toLocaleString('en-US',{minimumFractionDigits:0,maximumFractionDigits:0});
+  document.getElementById('analSpent').textContent = '$' + totalSpent.toLocaleString('en-US',{minimumFractionDigits:0,maximumFractionDigits:0});
+  document.getElementById('analRecurring').textContent = recurring.length;
+  document.getElementById('analAvg').textContent = avgPerUser;
+
+  // Type chart
+  const ctx1 = document.getElementById('typeChart').getContext('2d');
+  if (typeChart) typeChart.destroy();
+  const earnCount = entries.filter(e=>e.type==='earn').length;
+  const expCount = entries.filter(e=>e.type==='expense').length;
+  typeChart = new Chart(ctx1, {
+    type: 'doughnut',
+    data: { labels: ['Earned','Spent'], datasets: [{ data: [earnCount, expCount], backgroundColor: ['#4CAF82','#F07070'], borderWidth: 0 }] },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { color: '#A09D97', font: { size: 12 } } } } }
+  });
+
+  // Category chart
+  const catCounts = {};
+  entries.filter(e=>e.type==='expense').forEach(e => { catCounts[e.category||'other'] = (catCounts[e.category||'other']||0)+1; });
+  const catSorted = Object.entries(catCounts).sort((a,b)=>b[1]-a[1]).slice(0,6);
+  const ctx2 = document.getElementById('catChart').getContext('2d');
+  if (catChart) catChart.destroy();
+  catChart = new Chart(ctx2, {
+    type: 'bar',
+    data: { labels: catSorted.map(([k])=>k), datasets: [{ data: catSorted.map(([,v])=>v), backgroundColor: '#6B9FFF', borderRadius: 5, borderSkipped: false }] },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } },
+      scales: { x: { grid:{display:false}, ticks:{color:'#888',font:{size:11}} }, y: { beginAtZero:true, grid:{color:'rgba(255,255,255,.05)'}, ticks:{color:'#888',font:{size:11}} } }
+    }
+  });
+}
+</script>
+</body>
+</html>
